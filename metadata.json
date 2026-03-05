@@ -1,0 +1,5 @@
+{
+  "name": "CGATS 1.7 Generator",
+  "description": "Generate CGATS 1.7 files for color profiling with custom primaries, patches, and orientation.",
+  "requestFramePermissions": []
+}
