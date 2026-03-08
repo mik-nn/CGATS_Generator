@@ -1,20 +1,18 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CGATS Generator
 
-# Run and deploy your AI Studio app
+## Serverless HTML Version
 
-This contains everything you need to run your app locally.
+This version of CGATS Generator offers a fully serverless architecture that allows users to generate CGATS files directly from their web browsers without the need for server-side execution. This approach enhances performance and scalability, leading to a better user experience.
 
-View your app in AI Studio: https://ai.studio/apps/c48c202b-f608-40f9-9fd2-4a9fd6071a38
+### Features:
+- **Instant Processing:** Generates files in real-time.
+- **No Server Costs:** Run entirely in the client’s environment.
+- **Responsive UI:** Designed for seamless user interaction.
 
-## Run Locally
+### How to Use:
+1. Open the application in your web browser.
+2. Follow the user interface prompts.
+3. Download your generated CGATS file directly.
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Conclusion
+The serverless HTML version represents a significant advancement in the usability of CGATS file generation tools, making the process accessible to more users than ever before.
