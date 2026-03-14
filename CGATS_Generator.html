@@ -89,7 +89,7 @@ function letterPair(n){
 }
 
 function renderPrimaries(){
-    primariesContainer.innerHTML = "";
+    primariesContainer.replaceChildren();
     PRIMARIES.forEach(p=>{
         const b=document.createElement("button");
         b.textContent=p;
