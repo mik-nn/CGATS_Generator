@@ -191,16 +191,21 @@ function drawPreview(){
     let idx = 0;
 
     primaries.forEach((primary)=>{
+        const hasC = primary.includes("C");
+        const hasM = primary.includes("M");
+        const hasY = primary.includes("Y");
+        const hasK = primary.includes("K");
+
         for(let s=0; s<steps; s++){
             const row = Math.floor(idx / patchesPerRow);
             const col = idx % patchesPerRow;
 
             const step = steps>1 ? (s/(steps-1)) : 1;
 
-            const C = primary.includes("C") ? step : 0;
-            const M = primary.includes("M") ? step : 0;
-            const Y = primary.includes("Y") ? step : 0;
-            const K = primary.includes("K") ? step : 0;
+            const C = hasC ? step : 0;
+            const M = hasM ? step : 0;
+            const Y = hasY ? step : 0;
+            const K = hasK ? step : 0;
 
             const R = 255*(1-C)*(1-K);
             const G = 255*(1-M)*(1-K);
