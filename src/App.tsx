@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Code, FileText, Check, Copy } from 'lucide-react';
+import { Download, Code, Check, Copy } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const PRIMARIES = ['C', 'M', 'Y', 'K', 'CM', 'CY', 'MY', 'CMY'];
