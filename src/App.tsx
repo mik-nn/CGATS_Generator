@@ -4,6 +4,63 @@ import { motion } from 'motion/react';
 
 const PRIMARIES = ['C', 'M', 'Y', 'K', 'CM', 'CY', 'MY', 'CMY'];
 
+export const generateCGATSContent = (selectedPrimaries: string[], numPatches: number, orientation: 'portrait' | 'landscape') => {
+  const lines = [];
+  lines.push("CGATS.17");
+  lines.push('ORIGINATOR\t"Web CGATS Generator"');
+  lines.push('DESCRIPTOR\t"Custom CMYK Target"');
+  lines.push(`CREATED\t"${new Date().toISOString().split('T')[0]}"`);
+
+  const patches: any[] = [];
+
+  const getCmyk = (primary: string, stepVal: number) => {
+    const c = primary.includes('C') ? stepVal : 0.0;
+    const m = primary.includes('M') ? stepVal : 0.0;
+    const y = primary.includes('Y') ? stepVal : 0.0;
+    const k = primary.includes('K') ? stepVal : 0.0;
+    return { c, m, y, k };
+  };
+
+  selectedPrimaries.forEach((primary, pIdx) => {
+    for (let sIdx = 0; sIdx < numPatches; sIdx++) {
+      const stepVal = numPatches > 1 ? (sIdx / (numPatches - 1)) * 100.0 : 100.0;
+      const { c, m, y, k } = getCmyk(primary, stepVal);
+
+      let row, col;
+      if (orientation === 'portrait') {
+        col = pIdx + 1;
+        row = sIdx + 1;
+      } else {
+        row = pIdx + 1;
+        col = sIdx + 1;
+      }
+
+      patches.push({ row, col, c, m, y, k });
+    }
+  });
+
+  patches.sort((a, b) => {
+    if (a.row !== b.row) return a.row - b.row;
+    return a.col - b.col;
+  });
+
+  lines.push("NUMBER_OF_FIELDS\t7");
+  lines.push("BEGIN_DATA_FORMAT");
+  lines.push("SAMPLE_ID\tRow\tCol\tCMYK_C\tCMYK_M\tCMYK_Y\tCMYK_K");
+  lines.push("END_DATA_FORMAT");
+
+  lines.push(`NUMBER_OF_SETS\t${patches.length}`);
+  lines.push("BEGIN_DATA");
+
+  patches.forEach((p, idx) => {
+    lines.push(`${idx + 1}\t${p.row}\t${p.col}\t${p.c.toFixed(2)}\t${p.m.toFixed(2)}\t${p.y.toFixed(2)}\t${p.k.toFixed(2)}`);
+  });
+
+  lines.push("END_DATA");
+
+  return lines.join('\n');
+};
+
 export default function App() {
   const [selectedPrimaries, setSelectedPrimaries] = useState<string[]>(['C', 'M', 'Y', 'K']);
   const [numPatches, setNumPatches] = useState<number>(11);
@@ -16,69 +73,12 @@ export default function App() {
     );
   };
 
-  const generateCGATSContent = () => {
-    const lines = [];
-    lines.push("CGATS.17");
-    lines.push('ORIGINATOR\t"Web CGATS Generator"');
-    lines.push('DESCRIPTOR\t"Custom CMYK Target"');
-    lines.push(`CREATED\t"${new Date().toISOString().split('T')[0]}"`);
-    
-    const patches: any[] = [];
-    
-    const getCmyk = (primary: string, stepVal: number) => {
-      const c = primary.includes('C') ? stepVal : 0.0;
-      const m = primary.includes('M') ? stepVal : 0.0;
-      const y = primary.includes('Y') ? stepVal : 0.0;
-      const k = primary.includes('K') ? stepVal : 0.0;
-      return { c, m, y, k };
-    };
-
-    selectedPrimaries.forEach((primary, pIdx) => {
-      for (let sIdx = 0; sIdx < numPatches; sIdx++) {
-        const stepVal = numPatches > 1 ? (sIdx / (numPatches - 1)) * 100.0 : 100.0;
-        const { c, m, y, k } = getCmyk(primary, stepVal);
-        
-        let row, col;
-        if (orientation === 'portrait') {
-          col = pIdx + 1;
-          row = sIdx + 1;
-        } else {
-          row = pIdx + 1;
-          col = sIdx + 1;
-        }
-        
-        patches.push({ row, col, c, m, y, k });
-      }
-    });
-
-    patches.sort((a, b) => {
-      if (a.row !== b.row) return a.row - b.row;
-      return a.col - b.col;
-    });
-
-    lines.push("NUMBER_OF_FIELDS\t7");
-    lines.push("BEGIN_DATA_FORMAT");
-    lines.push("SAMPLE_ID\tRow\tCol\tCMYK_C\tCMYK_M\tCMYK_Y\tCMYK_K");
-    lines.push("END_DATA_FORMAT");
-    
-    lines.push(`NUMBER_OF_SETS\t${patches.length}`);
-    lines.push("BEGIN_DATA");
-    
-    patches.forEach((p, idx) => {
-      lines.push(`${idx + 1}\t${p.row}\t${p.col}\t${p.c.toFixed(2)}\t${p.m.toFixed(2)}\t${p.y.toFixed(2)}\t${p.k.toFixed(2)}`);
-    });
-    
-    lines.push("END_DATA");
-    
-    return lines.join('\n');
-  };
-
   const downloadCGATS = () => {
     if (selectedPrimaries.length === 0) {
       alert("Please select at least one primary.");
       return;
     }
-    const content = generateCGATSContent();
+    const content = generateCGATSContent(selectedPrimaries, numPatches, orientation);
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
