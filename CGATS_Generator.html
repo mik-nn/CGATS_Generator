@@ -124,21 +124,26 @@ function computeRowLength(){
 function buildPatches(){
     const patches = [];
 
-    function getCMYK(primary,step){
-        return {
-            c: primary.includes("C")?step:0,
-            m: primary.includes("M")?step:0,
-            y: primary.includes("Y")?step:0,
-            k: primary.includes("K")?step:0
-        };
-    }
+    const primaryFlags = selectedPrimaries.map(p => ({
+        hasC: p.includes("C"),
+        hasM: p.includes("M"),
+        hasY: p.includes("Y"),
+        hasK: p.includes("K")
+    }));
 
     for(let s=0; s<numPatches; s++){
         const stepVal = numPatches>1 ? (s/(numPatches-1))*100 : 100;
-        selectedPrimaries.forEach((p,pIdx)=>{
-            const {c,m,y,k} = getCMYK(p,stepVal);
-            patches.push({pIdx, s, c, m, y, k});
-        });
+        for (let pIdx = 0; pIdx < selectedPrimaries.length; pIdx++) {
+            const flags = primaryFlags[pIdx];
+            patches.push({
+                pIdx,
+                s,
+                c: flags.hasC ? stepVal : 0,
+                m: flags.hasM ? stepVal : 0,
+                y: flags.hasY ? stepVal : 0,
+                k: flags.hasK ? stepVal : 0
+            });
+        }
     }
     return patches;
 }
