@@ -187,24 +187,29 @@ function computeRowLength(){
 /* 3) CGATS-порядок (вертикальный) */
 function buildPatches(){
     const patches = [];
-
-    function getCMYK(primary,step){
-        return {
-            c: primary.includes("C")?step:0,
-            m: primary.includes("M")?step:0,
-            y: primary.includes("Y")?step:0,
-            k: primary.includes("K")?step:0
-        };
-    }
-
     const steps = stepsArray.length;
+
+    const parsedPrimaries = selectedPrimaries.map((p, pIdx) => ({
+        pIdx,
+        hasC: p.includes("C"),
+        hasM: p.includes("M"),
+        hasY: p.includes("Y"),
+        hasK: p.includes("K")
+    }));
 
     for(let s=0; s<steps; s++){
         const stepVal = stepsArray[s]; // уже 0–100
-        selectedPrimaries.forEach((p,pIdx)=>{
-            const {c,m,y,k} = getCMYK(p,stepVal);
-            patches.push({pIdx, s, c, m, y, k});
-        });
+        for(let i=0; i<parsedPrimaries.length; i++){
+            const p = parsedPrimaries[i];
+            patches.push({
+                pIdx: p.pIdx,
+                s,
+                c: p.hasC ? stepVal : 0,
+                m: p.hasM ? stepVal : 0,
+                y: p.hasY ? stepVal : 0,
+                k: p.hasK ? stepVal : 0
+            });
+        }
     }
     return patches;
 }
@@ -257,16 +262,21 @@ function drawPreview(){
     let idx = 0;
 
     primaries.forEach((primary)=>{
+        const hasC = primary.includes("C");
+        const hasM = primary.includes("M");
+        const hasY = primary.includes("Y");
+        const hasK = primary.includes("K");
+
         for(let s=0; s<steps; s++){
             const row = Math.floor(idx / patchesPerRow);
             const col = idx % patchesPerRow;
 
             const stepVal = stepsArray[s] / 100; // 0–1
 
-            const C = primary.includes("C") ? stepVal : 0;
-            const M = primary.includes("M") ? stepVal : 0;
-            const Y = primary.includes("Y") ? stepVal : 0;
-            const K = primary.includes("K") ? stepVal : 0;
+            const C = hasC ? stepVal : 0;
+            const M = hasM ? stepVal : 0;
+            const Y = hasY ? stepVal : 0;
+            const K = hasK ? stepVal : 0;
 
             const R = 255*(1-C)*(1-K);
             const G = 255*(1-M)*(1-K);
