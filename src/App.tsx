@@ -4,16 +4,37 @@ import { motion } from 'motion/react';
 
 const PRIMARIES = ['C', 'M', 'Y', 'K', 'CM', 'CY', 'MY', 'CMY'];
 
+interface InkLimits {
+  [key: string]: number;
+}
+
 export default function App() {
   const [selectedPrimaries, setSelectedPrimaries] = useState<string[]>(['C', 'M', 'Y', 'K']);
   const [numPatches, setNumPatches] = useState<number>(11);
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [copied, setCopied] = useState(false);
+  const [inkLimits, setInkLimits] = useState<InkLimits>({
+    C: 100,
+    M: 100,
+    Y: 100,
+    K: 100,
+    CM: 100,
+    CY: 100,
+    MY: 100,
+    CMY: 100,
+  });
 
   const togglePrimary = (p: string) => {
     setSelectedPrimaries(prev => 
       prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
     );
+  };
+
+  const updateInkLimit = (primary: string, value: number) => {
+    setInkLimits(prev => ({
+      ...prev,
+      [primary]: Math.max(0, Math.min(100, value)),
+    }));
   };
 
   const generateCGATSContent = () => {
@@ -26,10 +47,11 @@ export default function App() {
     const patches: any[] = [];
     
     const getCmyk = (primary: string, stepVal: number) => {
-      const c = primary.includes('C') ? stepVal : 0.0;
-      const m = primary.includes('M') ? stepVal : 0.0;
-      const y = primary.includes('Y') ? stepVal : 0.0;
-      const k = primary.includes('K') ? stepVal : 0.0;
+      const limit = inkLimits[primary] || 100;
+      const c = primary.includes('C') ? (stepVal * limit / 100.0) : 0.0;
+      const m = primary.includes('M') ? (stepVal * limit / 100.0) : 0.0;
+      const y = primary.includes('Y') ? (stepVal * limit / 100.0) : 0.0;
+      const k = primary.includes('K') ? (stepVal * limit / 100.0) : 0.0;
       return { c, m, y, k };
     };
 
@@ -92,7 +114,7 @@ export default function App() {
 
   const pythonScript = `import datetime
 
-def generate_cgats(primaries, num_patches, orientation, filename="output.txt"):
+def generate_cgats(primaries, num_patches, orientation, ink_limits, filename="output.txt"):
     lines = []
     lines.append("CGATS.17")
     lines.append('ORIGINATOR\\t"Python CGATS Generator"')
@@ -101,17 +123,18 @@ def generate_cgats(primaries, num_patches, orientation, filename="output.txt"):
     
     patches = []
     
-    def get_cmyk(primary, step_val):
-        c = step_val if 'C' in primary else 0.0
-        m = step_val if 'M' in primary else 0.0
-        y = step_val if 'Y' in primary else 0.0
-        k = step_val if 'K' in primary else 0.0
+    def get_cmyk(primary, step_val, limits):
+        limit = limits.get(primary, 100)
+        c = (step_val * limit / 100.0) if 'C' in primary else 0.0
+        m = (step_val * limit / 100.0) if 'M' in primary else 0.0
+        y = (step_val * limit / 100.0) if 'Y' in primary else 0.0
+        k = (step_val * limit / 100.0) if 'K' in primary else 0.0
         return (c, m, y, k)
 
     for p_idx, primary in enumerate(primaries):
         for s_idx in range(num_patches):
             step_val = (s_idx / (num_patches - 1)) * 100.0 if num_patches > 1 else 100.0
-            c, m, y, k = get_cmyk(primary, step_val)
+            c, m, y, k = get_cmyk(primary, step_val, ink_limits)
             
             if orientation == 'portrait':
                 col = p_idx + 1
@@ -145,7 +168,8 @@ if __name__ == "__main__":
     primaries = ${JSON.stringify(selectedPrimaries).replace(/"/g, "'")}
     num_patches = ${numPatches}
     orientation = '${orientation}'
-    generate_cgats(primaries, num_patches, orientation)
+    ink_limits = ${JSON.stringify(inkLimits).replace(/"/g, "'")}
+    generate_cgats(primaries, num_patches, orientation, ink_limits)
 `;
 
   const copyToClipboard = () => {
@@ -223,6 +247,26 @@ if __name__ == "__main__":
                   >
                     Landscape
                   </button>
+                </div>
+              </div>
+
+              {/* Ink Limits */}
+              <div className="mb-8">
+                <label className="block text-sm font-medium text-slate-700 mb-3">Ink Limits per Primary (%)</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {PRIMARIES.map(p => (
+                    <div key={p} className="flex flex-col items-center">
+                      <span className="text-xs font-medium text-slate-500 mb-1">{p}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={inkLimits[p]}
+                        onChange={(e) => updateInkLimit(p, parseInt(e.target.value) || 0)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-center text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
