@@ -25,18 +25,18 @@ export default function App() {
     
     const patches: any[] = [];
     
-    const getCmyk = (primary: string, stepVal: number) => {
-      const c = primary.includes('C') ? stepVal : 0.0;
-      const m = primary.includes('M') ? stepVal : 0.0;
-      const y = primary.includes('Y') ? stepVal : 0.0;
-      const k = primary.includes('K') ? stepVal : 0.0;
-      return { c, m, y, k };
-    };
-
     selectedPrimaries.forEach((primary, pIdx) => {
+      const hasC = primary.includes('C');
+      const hasM = primary.includes('M');
+      const hasY = primary.includes('Y');
+      const hasK = primary.includes('K');
+
       for (let sIdx = 0; sIdx < numPatches; sIdx++) {
         const stepVal = numPatches > 1 ? (sIdx / (numPatches - 1)) * 100.0 : 100.0;
-        const { c, m, y, k } = getCmyk(primary, stepVal);
+        const c = hasC ? stepVal : 0.0;
+        const m = hasM ? stepVal : 0.0;
+        const y = hasY ? stepVal : 0.0;
+        const k = hasK ? stepVal : 0.0;
         
         let row, col;
         if (orientation === 'portrait') {
@@ -100,18 +100,19 @@ def generate_cgats(primaries, num_patches, orientation, filename="output.txt"):
     lines.append(f'CREATED\\t"{datetime.datetime.now().strftime("%Y-%m-%d")}"')
     
     patches = []
-    
-    def get_cmyk(primary, step_val):
-        c = step_val if 'C' in primary else 0.0
-        m = step_val if 'M' in primary else 0.0
-        y = step_val if 'Y' in primary else 0.0
-        k = step_val if 'K' in primary else 0.0
-        return (c, m, y, k)
 
     for p_idx, primary in enumerate(primaries):
+        has_c = 'C' in primary
+        has_m = 'M' in primary
+        has_y = 'Y' in primary
+        has_k = 'K' in primary
+
         for s_idx in range(num_patches):
             step_val = (s_idx / (num_patches - 1)) * 100.0 if num_patches > 1 else 100.0
-            c, m, y, k = get_cmyk(primary, step_val)
+            c = step_val if has_c else 0.0
+            m = step_val if has_m else 0.0
+            y = step_val if has_y else 0.0
+            k = step_val if has_k else 0.0
             
             if orientation == 'portrait':
                 col = p_idx + 1
