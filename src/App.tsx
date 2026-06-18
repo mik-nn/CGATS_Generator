@@ -25,18 +25,18 @@ export default function App() {
     
     const patches: any[] = [];
     
-    const getCmyk = (primary: string, stepVal: number) => {
-      const c = primary.includes('C') ? stepVal : 0.0;
-      const m = primary.includes('M') ? stepVal : 0.0;
-      const y = primary.includes('Y') ? stepVal : 0.0;
-      const k = primary.includes('K') ? stepVal : 0.0;
-      return { c, m, y, k };
-    };
-
     selectedPrimaries.forEach((primary, pIdx) => {
+      const hasC = primary.includes('C');
+      const hasM = primary.includes('M');
+      const hasY = primary.includes('Y');
+      const hasK = primary.includes('K');
+
       for (let sIdx = 0; sIdx < numPatches; sIdx++) {
         const stepVal = numPatches > 1 ? (sIdx / (numPatches - 1)) * 100.0 : 100.0;
-        const { c, m, y, k } = getCmyk(primary, stepVal);
+        const c = hasC ? stepVal : 0.0;
+        const m = hasM ? stepVal : 0.0;
+        const y = hasY ? stepVal : 0.0;
+        const k = hasK ? stepVal : 0.0;
         
         let row, col;
         if (orientation === 'portrait') {
