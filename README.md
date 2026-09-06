@@ -43,5 +43,41 @@ A web-based tool for generating CGATS (Color Graphics Arts Technology Standard) 
 - Includes date stamps in generated files
 - CMYK color space calculations for accurate preview rendering
 
+## Presets Configuration
+
+Custom step presets can be defined in a `presets.json` file. The file should contain an array of preset objects, where each preset defines specific percentage values for CMYK channels.
+
+### Example: DotGain Preset
+
+The DotGain preset is commonly used for dot gain analysis and includes only single color patches (C, M, Y, K) at specific percentage values.
+
+**presets.json:**
+```json
+[
+  {
+    "name": "DotGain",
+    "steps": [
+      { "C": 100, "M": 0, "Y": 0, "K": 0 },
+      { "C": 80, "M": 0, "Y": 0, "K": 0 },
+      { "C": 40, "M": 0, "Y": 0, "K": 0 },
+      { "C": 0, "M": 100, "Y": 0, "K": 0 },
+      { "C": 0, "M": 80, "Y": 0, "K": 0 },
+      { "C": 0, "M": 40, "Y": 0, "K": 0 },
+      { "C": 0, "M": 0, "Y": 100, "K": 0 },
+      { "C": 0, "M": 0, "Y": 80, "K": 0 },
+      { "C": 0, "M": 0, "Y": 40, "K": 0 },
+      { "C": 0, "M": 0, "Y": 0, "K": 100 },
+      { "C": 0, "M": 0, "Y": 0, "K": 80 },
+      { "C": 0, "M": 0, "Y": 0, "K": 40 }
+    ]
+  }
+]
+```
+
+This preset generates patches with the following characteristics:
+- **Single colors only**: C, M, Y, K (no overprints)
+- **Three percentage levels**: 100%, 80%, and 40%
+- **Total patches**: 12 (3 steps × 4 primaries)
+
 ## Date of Update
 2026-03-08 19:14:46 (UTC)
