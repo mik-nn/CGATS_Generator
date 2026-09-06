@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>CGATS Generator</title>
+<style>
+    body { font-family: sans-serif; margin: 20px; background:#f5f5f5; }
+
+    .wrapper {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .wrapper h1 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .container { display: flex; gap: 20px; }
+    .card { background:white; padding:20px; border-radius:12px; flex:1; }
+    .label { font-weight:600; margin-top:10px; display:block; }
+    input, select { width:100%; padding:6px; margin-top:4px; border-radius:6px; border:1px solid #ccc; }
+    .primaries-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:6px; }
+    .primary-btn { padding:8px; border-radius:8px; border:none; cursor:pointer; background:#ddd; }
+    .primary-btn.active { background:#222; color:white; }
+    #preview-canvas { width:100%; background:#eee; border-radius:12px; margin-top:10px; }
+    #btn-download { margin-top:20px; width:100%; padding:12px; background:#059669; color:white; border:none; border-radius:10px; cursor:pointer; font-size:16px; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h1>CGATS 1.7 Generator</h1>
+
+    <div class="container">
+
+        <!-- LEFT PANEL -->
+        <div class="card">
+            <span class="label">Primaries</span>
+            <div id="primaries-container" class="primaries-grid"></div>
+
+            <span class="label">Steps preset</span>
+            <select id="steps-preset"></select>
+
+            <span class="label">Patch width (mm)</span>
+            <input id="patch-width" type="number" value="8" min="1" />
+
+            <span class="label">Patch height (mm)</span>
+            <input id="patch-height" type="number" value="8" min="1" />
+
+            <span class="label">Page width (mm)</span>
+            <input id="page-width" type="number" value="196" min="50" />
+
+            <button id="btn-download">↓ Download CGATS</button>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="card">
+            <h3>Preview</h3>
+            <canvas id="preview-canvas"></canvas>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const PRIMARIES =["C","M","Y","K","CMY","CM","CY","MY","CK","MK","YK","CMYK"];
+
+// встроенные пресеты шагов (0–100)
+const STEP_PRESETS = {
+    "Linear21": [0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95.100],
+    "Linear 11": [0,10,20,30,40,50,60,70,80,90,100],
+    "25 steps(P2P)": [0,2,4,6,8,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,98,100],
+    "HarlequinRIP": [0,2,4,6,8,10,15,20,30,40,50,60,70,80,90,95,100],
+    "InkLimits": [60,65,70,75,80,83,85,87,90,93,95,97,100] 	
+};
+
+let ALL_PRESETS = {...STEP_PRESETS};
+let selectedPrimaries = ["C","M","Y","K","CMY","CM","CY","MY"];
+let stepsArray = STEP_PRESETS["Linear 21"]; // текущая последовательность шагов
+
+let patchWidth = 8;
+let patchHeight = 8;
+let pageWidth = 196;
+let margin = 32;
+
+const primariesContainer = document.getElementById("primaries-container");
+const patchWidthInput = document.getElementById("patch-width");
+const patchHeightInput = document.getElementById("patch-height");
+const pageWidthInput = document.getElementById("page-width");
+const canvas = document.getElementById("preview-canvas");
+const ctx = canvas.getContext("2d");
+const btnDownload = document.getElementById("btn-download");
+const stepsPresetSelect = document.getElementById("steps-preset");
+
+function letterPair(n){
+    const a = String.fromCharCode(65 + Math.floor(n/26));
+    const b = String.fromCharCode(65 + (n%26));
+    return a+b;
+}
+
+function renderPrimaries(){
+    primariesContainer.innerHTML = "";
+    PRIMARIES.forEach(p=>{
+        const b=document.createElement("button");
+        b.textContent=p;
+        b.className="primary-btn"+(selectedPrimaries.includes(p)?" active":"");
+        b.onclick=()=>{
+            if(selectedPrimaries.includes(p))
+                selectedPrimaries = selectedPrimaries.filter(x=>x!==p);
+            else
+                selectedPrimaries.push(p);
+            renderPrimaries();
+            updatePreview();
+        };
+        primariesContainer.appendChild(b);
+    });
+}
+
+/* загрузка пресетов в select */
+function loadStepPresets(){
+    stepsPresetSelect.innerHTML = "";
+    Object.keys(ALL_PRESETS).forEach(name=>{
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        stepsPresetSelect.appendChild(opt);
+    });
+}
+
+/* попытка подгрузить presets.json (если есть) */
+async function tryLoadExternalPresets(){
+    try {
+        const resp = await fetch("presets.json");
+        if(!resp.ok) return;
+        const data = await resp.json();
+        // простая валидация: массив чисел 0–100 по возрастанию
+        Object.keys(data).forEach(name=>{
+            const arr = data[name];
+            if(!Array.isArray(arr) || arr.length === 0) return;
+            let ok = true;
+            let prev = -Infinity;
+            for(const v of arr){
+                if(typeof v !== "number") { ok = false; break; }
+                if(v < 0 || v > 100) { ok = false; break; }
+                if(v < prev) { ok = false; break; }
+                prev = v;
+            }
+            if(ok){
+                ALL_PRESETS[name] = arr;
+            }
+        });
+    } catch(e){
+        // тихо игнорируем
+    }
+}
+
+/* инициализация пресетов */
+async function initPresets(){
+    await tryLoadExternalPresets();
+    loadStepPresets();
+    const first = Object.keys(ALL_PRESETS)[0];
+    applyPreset(first);
+}
+
+/* применение выбранного пресета */
+function applyPreset(name){
+    stepsArray = ALL_PRESETS[name];
+    updatePreview();
+}
+
+/* 1) Сколько патчей помещается в строку */
+function computePatchesPerRow(){
+    const usable = pageWidth - margin;
+    const per = Math.floor(usable / patchWidth);
+    return Math.max(1, per);
+}
+
+/* 2) ROWLENGTH для CGATS */
+function computeRowLength(){
+    const patchesPerRow = computePatchesPerRow();
+    const steps = stepsArray.length;
+    const totalPatches = selectedPrimaries.length * steps;
+    return Math.ceil(totalPatches / patchesPerRow);
+}
+
+/* 3) CGATS-порядок (вертикальный) */
+function buildPatches(){
+    const patches = [];
+
+    function getCMYK(primary,step){
+        return {
+            c: primary.includes("C")?step:0,
+            m: primary.includes("M")?step:0,
+            y: primary.includes("Y")?step:0,
+            k: primary.includes("K")?step:0
+        };
+    }
+
+    const steps = stepsArray.length;
+
+    for(let s=0; s<steps; s++){
+        const stepVal = stepsArray[s]; // уже 0–100
+        selectedPrimaries.forEach((p,pIdx)=>{
+            const {c,m,y,k} = getCMYK(p,stepVal);
+            patches.push({pIdx, s, c, m, y, k});
+        });
+    }
+    return patches;
+}
+
+/* 4) CGATS файл */
+function generateCGATS(){
+    const ROWLENGTH = computeRowLength();
+    const patches = buildPatches();
+    const lines = [];
+
+    lines.push("CGATS.17");
+    lines.push("ROWLENGTH\t"+ROWLENGTH);
+    lines.push('ORIGINATOR\t"Web CGATS Generator"');
+    lines.push('DESCRIPTOR\t"Custom CMYK Target"');
+    lines.push('CREATED\t"'+new Date().toISOString().split("T")[0]+'"');
+
+    lines.push("NUMBER_OF_FIELDS\t5");
+    lines.push("BEGIN_DATA_FORMAT");
+    lines.push("SAMPLE_ID\tCMYK_C\tCMYK_M\tCMYK_Y\tCMYK_K");
+    lines.push("END_DATA_FORMAT");
+    lines.push("NUMBER_OF_SETS\t"+patches.length);
+    lines.push("BEGIN_DATA");
+
+    patches.forEach(p=>{
+        const id = letterPair(p.pIdx) + String(p.s+1).padStart(2,"0");
+        lines.push(`${id}\t${p.c.toFixed(2)}\t${p.m.toFixed(2)}\t${p.y.toFixed(2)}\t${p.k.toFixed(2)}`);
+    });
+
+    lines.push("END_DATA");
+    return lines.join("\n");
+}
+
+/* 5) Превью — primary-major, строка продолжается пока не заполнится */
+function drawPreview(){
+    const patchesPerRow = computePatchesPerRow();
+    const primaries = selectedPrimaries;
+    const steps = stepsArray.length;
+
+    const pxW = patchWidth * 4;
+    const pxH = patchHeight * 4;
+
+    const totalPatches = primaries.length * steps;
+    const totalRows = Math.ceil(totalPatches / patchesPerRow);
+
+    canvas.width  = patchesPerRow * pxW;
+    canvas.height = totalRows * pxH;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    let idx = 0;
+
+    primaries.forEach((primary)=>{
+        for(let s=0; s<steps; s++){
+            const row = Math.floor(idx / patchesPerRow);
+            const col = idx % patchesPerRow;
+
+            const stepVal = stepsArray[s] / 100; // 0–1
+
+            const C = primary.includes("C") ? stepVal : 0;
+            const M = primary.includes("M") ? stepVal : 0;
+            const Y = primary.includes("Y") ? stepVal : 0;
+            const K = primary.includes("K") ? stepVal : 0;
+
+            const R = 255*(1-C)*(1-K);
+            const G = 255*(1-M)*(1-K);
+            const B = 255*(1-Y)*(1-K);
+
+            const x = col * pxW;
+            const y = row * pxH;
+
+            ctx.fillStyle = `rgb(${R},${G},${B})`;
+            ctx.fillRect(x,y,pxW,pxH);
+
+            idx++;
+        }
+    });
+}
+
+function updatePreview(){ drawPreview(); }
+
+/* Events */
+patchWidthInput.oninput = ()=>{ patchWidth = +patchWidthInput.value || 1; updatePreview(); };
+patchHeightInput.oninput = ()=>{ patchHeight = +patchHeightInput.value || 1; updatePreview(); };
+pageWidthInput.oninput = ()=>{ pageWidth = +pageWidthInput.value || 1; updatePreview(); };
+
+stepsPresetSelect.onchange = ()=>{
+    const name = stepsPresetSelect.value;
+    applyPreset(name);
+};
+
+btnDownload.onclick = ()=>{
+    const txt = generateCGATS();
+    const blob = new Blob([txt],{type:"text/plain"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="CMYK_Target.txt";
+    a.click();
+};
+
+renderPrimaries();
+initPresets();
+</script>
+
+</body>
+</html>
